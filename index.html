@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knekk Midi-Invaders</title>
+    <style>
+        /* Inline CSS for bedre kompatibilitet */
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        body {
+          font-family: 'Arial', sans-serif;
+          background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+          color: white;
+          overflow: hidden;
+          height: 100vh;
+        }
+
+        .app {
+          height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          position: relative;
+          z-index: 1; /* Above background canvas */
+        }
+
+        .start-screen {
+          text-align: center;
+          background: rgba(0, 0, 0, 0.8);
+          padding: 40px;
+          border-radius: 20px;
+          border: 2px solid #00ffff;
+          box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+
+        .start-screen h1 {
+          font-size: 3em;
+          margin-bottom: 20px;
+          text-shadow: 0 0 20px #00ffff;
+        }
+
+        .start-screen button {
+          background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+          border: none;
+          padding: 15px 30px;
+          font-size: 1.3em;
+          color: white;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-screen {
+          width: 100%;
+          height: 100%;
+          position: relative;
+        }
+
+        .hud {
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          right: 20px;
+          display: flex;
+          justify-content: space-between;
+          z-index: 1000;
+          font-size: 1.2em;
+          font-weight: bold;
+        }
+
+        .game-container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 20px;
+        }
+
+        .game-area {
+          width: 800px;
+          height: 600px;
+          position: relative;
+          background: rgba(0, 0, 0, 0.3);
+          border: 2px solid #00ffff;
+          border-radius: 10px;
+          overflow: hidden;
+        }
+
+        .collection-progress {
+          width: 250px;
+          background: rgba(0, 0, 0, 0.8);
+          border: 2px solid #ffaa00;
+          border-radius: 10px;
+          padding: 15px;
+          color: white;
+          margin-bottom: 20px;
+        }
+        
+        .collection-item {
+          display: flex;
+          align-items: center;
+          margin: 10px 0;
+          gap: 10px;
+        }
+        
+        .collection-icons {
+          display: flex;
+          gap: 2px;
+        }
+        
+        .collection-icon {
+          width: 20px;
+          height: 20px;
+          opacity: 0.3;
+          transition: opacity 0.3s;
+        }
+        
+        .collection-icon.collected {
+          opacity: 1;
+        }
+        
+        .bonus-messages {
+          width: 250px;
+          height: 400px;
+          background: rgba(0, 0, 0, 0.5);
+          border: 2px solid #00ffaa;
+          border-radius: 10px;
+          padding: 20px;
+          overflow-y: auto;
+        }
+
+        .bonus-messages h3 {
+          color: #00ffaa;
+          text-align: center;
+          margin-bottom: 15px;
+          font-size: 1.2em;
+        }
+
+        .bonus-message {
+          background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+          color: white;
+          padding: 10px;
+          margin-bottom: 10px;
+          border-radius: 8px;
+          font-weight: bold;
+          text-align: center;
+          animation: slideIn 0.5s ease-out;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideIn {
+          from {
+            transform: translateX(100px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        .bonus-message.fade-out {
+          animation: fadeOut 1s ease-out forwards;
+        }
+
+        @keyframes fadeOut {
+          to {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+        }
+
+        .player {
+          position: absolute;
+          font-size: 30px;
+          z-index: 100;
+        }
+
+        .bullet {
+          position: absolute;
+          background: linear-gradient(180deg, #ffff00, #ff8800);
+          border-radius: 2px;
+          z-index: 50;
+        }
+
+        .enemy {
+          position: absolute;
+          z-index: 10;
+        }
+
+        .enemy img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+        .left-tip {
+          position: absolute;
+          left: 20px;
+          bottom: 80px;
+          color: #cfe8ff;
+          font-size: 14px;
+          background: rgba(0, 0, 0, 0.35);
+          border: 1px solid rgba(207, 232, 255, 0.35);
+          padding: 6px 10px;
+          border-radius: 8px;
+          z-index: 1200;
+          pointer-events: none;
+        }
+        /* Pitch Bend toast (bottom-right) */
+        .pitch-bend-toast {
+          position: absolute;
+          right: 12px;
+          bottom: 12px;
+          z-index: 3001;
+          pointer-events: none;
+        }
+        .pitch-bend-toast.hidden { display: none; }
+        .pitch-bend-toast .pb-content {
+          background: rgba(0, 0, 0, 0.55);
+          border: 2px solid #66ffcc;
+          border-radius: 10px;
+          color: #eafff7;
+          padding: 10px 14px;
+          font-weight: 800;
+          font-size: 18px;
+          line-height: 1.1;
+          text-shadow: 0 0 8px rgba(102, 255, 204, 0.5);
+          animation: toastBlink 900ms ease-in-out 0s 2 alternate;
+          will-change: transform, opacity;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+        }
+        .pitch-bend-toast .notes {
+          font-size: 16px;
+          opacity: 0.9;
+          margin-top: 4px;
+        }
+        @keyframes toastBlink {
+          0% { opacity: 0.2; transform: scale(0.96); }
+          50% { opacity: 1; transform: scale(1.02); }
+          100% { opacity: 0.2; transform: scale(0.96); }
+        }
+        /* Fullscreen Matrix background canvas */
+        #matrixCanvas {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          z-index: 0;
+          pointer-events: none;
+        }
+        /* Dramatic center-screen overlay */
+        .center-message {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: auto;
+          bottom: 16px;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          pointer-events: none;
+          z-index: 3000;
+        }
+        .center-message.hidden { display: none; }
+        .center-message .content {
+          font-size: 32px;
+          font-weight: 800;
+          color: #ffffff;
+          text-align: center;
+          padding: 12px 18px;
+          background: rgba(0, 0, 0, 0.45);
+          border: 2px solid #00ffaa;
+          border-radius: 12px;
+          text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+          animation: fadeSlideUp 180ms ease-out;
+          max-width: 90vw;
+          line-height: 1.2;
+          will-change: transform, opacity;
+        }
+        .center-message .content.hero {
+          font-size: 112px;
+          border-width: 3px;
+          text-shadow: 0 0 16px rgba(0,255,170,0.9), 0 0 28px rgba(0,255,255,0.6);
+          animation: fadeSlideUp 160ms ease-out, pulseGlowPB 1s ease-in-out 0s 1;
+        }
+        @keyframes pulseGlowPB {
+          from { box-shadow: 0 0 12px rgba(0,255,255,0.4); }
+          to { box-shadow: 0 0 30px rgba(0,255,255,0.9); }
+        }
+        @keyframes fadeSlideUp {
+          from { transform: translateY(16px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Center alert message (red, mid-screen) */
+        .alert-message {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 3002;
+          pointer-events: none;
+        }
+        .alert-message.hidden { display: none; }
+        .alert-message .content {
+          color: #ff3b3b;
+          font-weight: 900;
+          font-size: 44px;
+          background: rgba(0,0,0,0.35);
+          border: 2px solid rgba(255,59,59,0.8);
+          border-radius: 12px;
+          padding: 10px 16px;
+          text-shadow: 0 0 12px rgba(255,59,59,0.6);
+          animation: alertPop 140ms ease-out;
+          will-change: transform, opacity;
+        }
+        @keyframes alertPop {
+          from { transform: scale(0.92); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrixCanvas"></canvas>
+    <div id="app"></div>
+    
+    <script>
+        // Matrix background setup
+        (function initMatrixBackground() {
+          const canvas = document.getElementById('matrixCanvas');
+          if (!canvas) return;
+          const ctx = canvas.getContext('2d');
+          const resize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            columns = Math.floor(canvas.width / columnWidth);
+            drops = Array(columns).fill(0).map(() => Math.floor(Math.random() * 40));
+          };
+          const columnWidth = 28;
+          let columns = 0;
+          let drops = [];
+          const chords = ['d/f#','emaj7','g-dur','Ab9','F#13','H/Db11','A/c#'];
+          const colors = ['#00ff99','#00ff66','#00cc66','#00aa55'];
+          window.addEventListener('resize', resize);
+          resize();
+          function draw() {
+            ctx.fillStyle = 'rgba(0, 15, 0, 0.25)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '22px Consolas, monospace';
+            for (let i = 0; i < columns; i++) {
+              const text = chords[(Math.random() * chords.length) | 0];
+              ctx.fillStyle = colors[(Math.random() * colors.length) | 0];
+              const x = i * columnWidth + 6;
+              const y = (drops[i] * 14);
+              ctx.shadowBlur = 0;
+              ctx.fillText(text, x, y);
+              ctx.lineWidth = 1;
+              ctx.strokeStyle = 'rgba(0, 60, 32, 0.8)';
+              ctx.strokeText(text, x, y);
+              if (y > canvas.height + Math.random() * 200) {
+                drops[i] = 0;
+              } else {
+                drops[i] += 0.09 + (Math.random() * 0.12);
+              }
+            }
+            requestAnimationFrame(draw);
+          }
+          draw();
+        })();
+
+        // Vanilla JS Space Invaders (ingen React for å unngå CORS)
+        class SpaceInvaders {
+            constructor() {
+                this.gameState = 'start';
+                this.score = 0;
+                this.lives = 3;
+                this.level = 1;
+                
+                this.canvas = null;
+                this.ctx = null;
+                
+                 this.player = {
+                    x: 340, // settes korrekt ved startGame
+                    y: 550,
+                    width: 90,
+                    height: 36,
+                    speed: 5
+                 };
+                
+                this.bullets = [];
+                this.enemyBullets = [];
+                this.hazardNotes = [];
+                this.sleepZeds = [];
+                this.enemies = [];
+                this.enemyDirection = 1;
+                this.enemySpeed = 0.5;
+                this.enemyDropSpeed = 0.5;
+                this.lastEnemyMove = 0;
+                this.lastEnemyDrop = 0;
+                this.lastHazardScoreMilestone = 0;
+                this._lastAlertAt = performance.now();
+                this._alarmCountdown = 10;
+                this.invulnerableUntil = 0;
+                
+                this.keys = {
+                    left: false,
+                    right: false,
+                    space: false,
+                    z: false
+                };
+                
+                // Pitch bend variabler
+                this.pitchBendActive = false;
+                this.pitchBendTime = 0;
+
+                // Bonus pr kategori (ved 20 samlet) og tilpasset melding
+                this.bonusByType = {
+                    'basketball': { points: 100, text: 'BasketBjørnar-bonus 100 poeng!!!' },
+                    'toilet': { points: 89, text: 'På tide å rygge ut en snickers-bonus 89 poeng!!!' },
+                    'saxophone': { points: 230, text: 'Trøkk med sax-bonus aktivert 230 poeng' },
+                    'coffee-cup': { points: 34, text: 'Fergekjeft-bonus aktivert 34 poeng' }
+                };
+
+                // Bonus ved 5 per kategori
+                this.bonusAt5 = {
+                    'basketball': { points: 100, text: 'BasketBjørnar-bonus 100 poeng!!!' },
+                    'toilet': { points: 89, text: 'På tide å rygge ut en snickers-bonus 89 poeng!!!' },
+                    'saxophone': { points: 230, text: 'Trøkk med sax-bonus aktivert 230 poeng' },
+                    'coffee-cup': { points: 34, text: 'Fergekjeft-bonus aktivert 34 poeng' }
+                };
+                this.bonusThreshold = 5;
+                this.bonusAwarded = { 'basketball': false, 'toilet': false, 'saxophone': false, 'coffee-cup': false };
+                
+                this.lastBulletTime = 0;
+                
+                // Samle-system
+                this.collected = {
+                    basketball: 0,
+                    toilet: 0,
+                    saxophone: 0,
+                    'coffee-cup': 0
+                };
+                this.targetPerType = 20;
+                // Ekstra statistikk
+                this.destroyedHazards = 0; // røde noter skutt
+                this.destroyedZeds = 0;    // zzzz skutt
+
+                // Vega-alert meldinger (rullerende rekkefølge)
+                this.alertMessages = [
+                    'folk blir lei , dei går',
+                    'e har ikke blitt brifa om ka som skjer på huset her i kveld',
+                    'dokke har ingenting å melde',
+                    'Nordens police men ej hadde ikkje lagt med deg',
+                    'pregløs og platt vokal'
+                ];
+                this.alertIndex = 0;
+                
+                this.init();
+            }
+            
+            init() {
+                this.createElements();
+                this.bindEvents();
+                this.showStartScreen();
+            }
+            
+            createElements() {
+                const app = document.getElementById('app');
+                app.className = 'app';
+                app.innerHTML = '';
+                
+                this.canvas = document.createElement('canvas');
+                this.canvas.width = 800;
+                this.canvas.height = 600;
+                this.canvas.style.display = 'none';
+                this.canvas.style.border = '2px solid #00ffff';
+                this.canvas.style.borderRadius = '10px';
+                this.canvas.style.background = 'rgba(0, 0, 0, 0.3)';
+                app.appendChild(this.canvas);
+                
+                this.ctx = this.canvas.getContext('2d');
+            }
+            
+            showStartScreen() {
+                this.gameState = 'start';
+                const app = document.getElementById('app');
+                app.innerHTML = `
+                    <div class="start-screen">
+                        <h1>Knekk Midi-Invaders</h1>
+                        <p>Fra Fergekjeft til Trøkk</p>
+                        <p>🏀 Basketball | ☕ Kaffekopp | 🚽 Toalett | 🎷 Saxofon</p>
+                        <button onclick="game.startGame()">Start Spill</button>
+                        <div style="margin-top: 20px;">
+                            <p>Bruk piltastene for å bevege deg</p>
+                            <p>Trykk mellomrom for å skyte</p>
+                            <p>Hold Z for Pitch Bend (zikk-zakk skudd)</p>
+                            <p>Hver level øker hastigheten med 5%</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            startGame() {
+                this.gameState = 'playing';
+                this.score = 0;
+                this.lives = 3;
+                this.level = 1;
+                this.player.x = 800/2 - this.player.width/2;
+                this.bullets = [];
+                this.hazardNotes = [];
+                this.sleepZeds = [];
+                
+                // Reset samle-system
+                this.collected = {
+                    basketball: 0,
+                    toilet: 0,
+                    saxophone: 0,
+                    'coffee-cup': 0
+                };
+                // Reset 10-terskel bonusflagg
+                this.bonusAwarded = { 'basketball': false, 'toilet': false, 'saxophone': false, 'coffee-cup': false };
+                
+                // Reset hastigheter
+                this.enemySpeed = 0.5;
+                this.enemyDropSpeed = 0.5;
+                
+                // Reset fiendebevegelse
+                this.lastEnemyMove = 0;
+                this.lastEnemyDrop = 0;
+                
+                // Reset pitch bend
+                this.pitchBendActive = false;
+                this.pitchBendTime = 0;
+                
+                // Vega countdown init
+                this._lastAlertAt = performance.now();
+                this._alarmCountdown = 10;
+                this.alarmStarted = false;
+
+                this.createEnemies();
+                this.showGameScreen();
+                this.gameLoop();
+            }
+            
+            showGameScreen() {
+                const app = document.getElementById('app');
+                app.innerHTML = `
+                    <div class="game-screen">
+                        <div class="hud">
+                            <div>Score: <span id="score">0</span></div>
+                            <div>Level: <span id="level">${this.level}</span></div>
+                            <div>Lives: <span id="lives">3</span></div>
+                            <div>Pitch Bend: <span id="pitch-bend-status">Inaktiv</span></div>
+                            <div>Vega countdown: <span id="alarm-countdown">10</span>s</div>
+                        </div>
+                        <div id="center-message" class="center-message hidden"><div class="content"></div></div>
+                        <div id="alert-message" class="alert-message hidden"><div class="content"></div></div>
+                        <div id="pitch-bend-toast" class="pitch-bend-toast hidden">
+                          <div class="pb-content">
+                            🎵 PITCH BEND
+                            <div class="notes">♩ ♪ ♫ ♬ ♯ ♭</div>
+                          </div>
+                        </div>
+                        <div class="left-tip">Husk å aktivere pitch bend med å trykke på "z"</div>
+                        <div class="game-container">
+                            <div class="game-area-wrapper"></div>
+                            <div class="collection-progress">
+                                <h3>Knekk Progress - Level ${this.level}</h3>
+                                <div class="collection-item">
+                                    <span>🏀 Basketball:</span>
+                                    <div class="collection-icons" id="basketball-icons"></div>
+                                    <span id="basketball-count">0/20</span>
+                                </div>
+                                <div class="collection-item">
+                                    <span>☕ Kaffekopp:</span>
+                                    <div class="collection-icons" id="coffee-cup-icons"></div>
+                                    <span id="coffee-cup-count">0/20</span>
+                                </div>
+                                <div class="collection-item">
+                                    <span>🚽 Toalett:</span>
+                                    <div class="collection-icons" id="toilet-icons"></div>
+                                    <span id="toilet-count">0/20</span>
+                                </div>
+                                <div class="collection-item">
+                                    <span>🎷 Saxofon:</span>
+                                    <div class="collection-icons" id="saxophone-icons"></div>
+                                    <span id="saxophone-count">0/20</span>
+                                </div>
+                                <hr style="margin:8px 0; border-color:#ffaa00; opacity:0.4;"/>
+                                <div class="collection-item">
+                                    <span style="color:#ff4d4d;">♫♫ Røde noter skutt:</span>
+                                    <span id="hazard-count" style="margin-left:auto;">0</span>
+                                </div>
+                                <div class="collection-item">
+                                    <span style="color:#ff69b4;">buuu med Knekklectric skutt:</span>
+                                    <span id="zeds-count" style="margin-left:auto;">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                this.canvas.style.display = 'block';
+                app.querySelector('.game-area-wrapper').appendChild(this.canvas);
+                this.updateCollectionDisplay();
+            }
+            
+            updateCollectionDisplay() {
+                const types = ['basketball', 'coffee-cup', 'toilet', 'saxophone'];
+                const emojis = ['🏀', '☕', '🚽', '🎷'];
+                
+                types.forEach((type, index) => {
+                    const iconsContainer = document.getElementById(`${type}-icons`);
+                    const countSpan = document.getElementById(`${type}-count`);
+                    
+                    if (iconsContainer && countSpan) {
+                        // Oppdater ikonene
+                        iconsContainer.innerHTML = '';
+                        for (let i = 0; i < this.targetPerType; i++) {
+                            const icon = document.createElement('span');
+                            icon.className = `collection-icon ${i < this.collected[type] ? 'collected' : ''}`;
+                            icon.textContent = emojis[index];
+                            iconsContainer.appendChild(icon);
+                        }
+                        
+                        // Oppdater telleren
+                        countSpan.textContent = `${this.collected[type]}/${this.targetPerType}`;
+                    }
+                });
+                
+                // Oppdater tittelen
+                const titleElement = document.querySelector('.collection-progress h3');
+                if (titleElement) {
+                    titleElement.textContent = `Knekk Progress - Level ${this.level}`;
+                }
+                
+                // Oppdater pitch bend status
+                this.updatePitchBendStatus();
+            }
+            
+            updatePitchBendStatus() {
+                const statusElement = document.getElementById('pitch-bend-status');
+                if (statusElement) {
+                    if (this.pitchBendActive) {
+                        statusElement.textContent = '🎵 Aktiv';
+                        statusElement.style.color = '#00ff00';
+                    } else {
+                        statusElement.textContent = 'Inaktiv';
+                        statusElement.style.color = '#ffffff';
+                    }
+                }
+            }
+            
+            checkLevelComplete() {
+                return Object.values(this.collected).every(count => count >= this.targetPerType);
+            }
+            
+            nextLevel() {
+                this.level++;
+                
+                // Øk hastigheten med 5%
+                this.enemySpeed *= 1.05;
+                this.enemyDropSpeed *= 1.05;
+                
+                // Reset samle-system for neste level
+                this.collected = {
+                    basketball: 0,
+                    toilet: 0,
+                    saxophone: 0,
+                    'coffee-cup': 0
+                };
+                // Reset 10-terskel bonusflagg for ny level
+                this.bonusAwarded = { 'basketball': false, 'toilet': false, 'saxophone': false, 'coffee-cup': false };
+                this.hazardNotes = [];
+                this.lastHazardScoreMilestone = Math.floor(this.score / 100) * 100;
+                this.invulnerableUntil = performance.now() + 1500; // kort immunitet ved levelstart
+                
+                // Reset fiendebevegelse
+                this.lastEnemyMove = 0;
+                this.lastEnemyDrop = 0;
+                
+                // Reset pitch bend
+                this.pitchBendActive = false;
+                this.pitchBendTime = 0;
+                
+                // Vis level up melding dramatisk midt på skjermen
+                this.showCenterMessage(`LEVEL ${this.level}! Hastighet økt med 5%!`, 2000);
+                
+                // Oppdater level display
+                const levelSpan = document.getElementById('level');
+                if (levelSpan) {
+                    levelSpan.textContent = this.level;
+                }
+                
+                // Opprett nye fiender
+                this.createEnemies();
+                
+                // Oppdater samle-display
+                this.updateCollectionDisplay();
+                
+                // Sett gameState tilbake til playing
+                this.gameState = 'playing';
+                this.gameLoop();
+            }
+            
+            createEnemies() {
+                this.enemies = [];
+                const types = [
+                    { emoji: '☕', name: 'coffee-cup', bonus: 'fergekjeft-bonus på vei 12 poeng' },
+                    { emoji: '🚽', name: 'toilet', bonus: 'skitbonus på vei 15 poeng' },
+                    { emoji: '🎷', name: 'saxophone', bonus: 'nå blir det trøkk-bonus 34 poeng' },
+                    { emoji: '🏀', name: 'basketball', bonus: 'basket-Bjørnar-bonus 20 poeng!!' }
+                ];
+                
+                for (let row = 0; row < 4; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        this.enemies.push({
+                            x: col * 80 + 100,
+                            y: row * 60 + 50,
+                            width: 60,
+                            height: 40,
+                            alive: true,
+                            type: types[row % 4].emoji,
+                            name: types[row % 4].name,
+                            bonusText: types[row % 4].bonus,
+                            points: (row + 1) * 50
+                        });
+                    }
+                }
+            }
+            
+            // showBonusMessage fjernet – vi bruker showCenterMessage for dramatiske meldinger
+
+            showCenterMessage(text, durationMs = 1600) {
+                const overlay = document.getElementById('center-message');
+                if (!overlay) return;
+                const content = overlay.querySelector('.content');
+                if (!content) return;
+                content.textContent = text;
+                overlay.classList.remove('hidden');
+                clearTimeout(this._centerMsgTimer);
+                this._centerMsgTimer = setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, durationMs);
+            }
+
+            showPitchBendToast(durationMs = 1200) {
+                const toast = document.getElementById('pitch-bend-toast');
+                if (!toast) return;
+                toast.classList.remove('hidden');
+                clearTimeout(this._pbTimer);
+                this._pbTimer = setTimeout(() => {
+                    toast.classList.add('hidden');
+                }, durationMs);
+            }
+
+            showAlertMessage(text, durationMs = 1600) {
+                const overlay = document.getElementById('alert-message');
+                if (!overlay) return;
+                const content = overlay.querySelector('.content');
+                if (!content) return;
+                content.textContent = text;
+                overlay.classList.remove('hidden');
+                clearTimeout(this._alertTimer);
+                this._alertTimer = setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, durationMs);
+            }
+
+            spawnSleepZeds(count = 5, text = 'buuu med Knekklectric') {
+                for (let i = 0; i < count; i++) {
+                    const startX = Math.random() * (800 - 40) + 20;
+                    const speed = 1.2 + Math.random() * 0.8;
+                    const waveSpeed = 0.05 + Math.random() * 0.05;
+                    const width = Math.max(120, Math.min(760, Math.floor(text.length * 12)));
+                    const height = 24;
+                    this.sleepZeds.push({ x: startX, y: -20 - Math.random() * 80, speed, wave: Math.random() * Math.PI * 2, waveSpeed, width, height, text });
+                }
+            }
+            
+            bindEvents() {
+                document.addEventListener('keydown', (e) => {
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            this.keys.left = true;
+                            break;
+                        case 'ArrowRight':
+                            this.keys.right = true;
+                            break;
+                        case ' ':
+                            e.preventDefault();
+                            this.keys.space = true;
+                            break;
+                        case 'z':
+                            this.pitchBendActive = true;
+                            this.pitchBendTime = Date.now();
+                            this.keys.z = true;
+                            this.updatePitchBendStatus();
+                            this.showPitchBendToast();
+                            break;
+                        case 'Z':
+                            this.pitchBendActive = true;
+                            this.pitchBendTime = Date.now();
+                            this.keys.z = true;
+                            // Mer dramatisk hero-stil
+                            const overlay = document.getElementById('center-message');
+                            if (overlay) {
+                              const content = overlay.querySelector('.content');
+                              if (content) content.classList.add('hero');
+                            }
+                            this.showCenterMessage('🎵 PITCH BEND AKTIVERT! 🎵', 2400);
+                            // Fjern hero-stil etter visning
+                            setTimeout(() => {
+                              const ov = document.getElementById('center-message');
+                              if (ov) { const c = ov.querySelector('.content'); if (c) c.classList.remove('hero'); }
+                            }, 2600);
+                            this.updatePitchBendStatus();
+                            this.showPitchBendToast();
+                            break;
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            this.keys.left = false;
+                            break;
+                        case 'ArrowRight':
+                            this.keys.right = false;
+                            break;
+                        case ' ':
+                            this.keys.space = false;
+                            break;
+                        case 'z':
+                        case 'Z':
+                            this.keys.z = false;
+                            this.pitchBendActive = false;
+                            this.updatePitchBendStatus();
+                            break;
+                    }
+                });
+            }
+            
+            gameLoop(ts) {
+                if (this.gameState !== 'playing') return;
+                const dt = Math.min(34, (ts ?? performance.now()) - (this._lastTs ?? (ts ?? performance.now()))) / 1000;
+                this._lastTs = ts ?? performance.now();
+                this.update(dt);
+                this.draw();
+                requestAnimationFrame((t) => this.gameLoop(t));
+            }
+            
+            update(dt = 0) {
+                // Oppdater spiller
+                if (this.keys.left && this.player.x > 0) {
+                    this.player.x -= this.player.speed;
+                }
+                if (this.keys.right && this.player.x < 800 - this.player.width) {
+                    this.player.x += this.player.speed;
+                }
+                
+                // Skyt musikknote-kuler
+                const now = Date.now();
+                if (this.keys.space && now - this.lastBulletTime > 200) {
+                    this.bullets.push({
+                        x: this.player.x + this.player.width / 2 - 10.4,
+                        y: this.player.y,
+                        width: 20.8,
+                        height: 20.8,
+                        speed: 8,
+                        noteType: Math.floor(Math.random() * 6), // For variasjon av noter
+                        pitchBendOffset: 0, // Start offset for pitch bend
+                        pitchBendSpeed: 0.1 // Hastighet for pitch bend-bølgen
+                    });
+                    this.lastBulletTime = now;
+                }
+
+                // Merk: farlige noter spawner først etter første alarm (styres nedenfor)
+                
+                // Oppdater kuler med pitch bend-effekt
+                this.bullets = this.bullets.filter(bullet => {
+                    bullet.y -= bullet.speed;
+                    
+                    // Pitch bend-effekt: når aktiv, mye større og raskere zikk-zakk
+                    if (this.pitchBendActive) {
+                        bullet.pitchBendOffset += 0.35; // raskere bølge
+                        bullet.x += Math.sin(bullet.pitchBendOffset) * 16; // mye større amplitude
+                    } else {
+                        // Lett naturlig sway når ikke aktiv (valgfritt, lite)
+                        bullet.pitchBendOffset += bullet.pitchBendSpeed;
+                        bullet.x += Math.sin(bullet.pitchBendOffset) * 2;
+                    }
+                    
+                    return bullet.y > 0;
+                });
+
+                // Oppdater farlige noter (varmesøkende + zikk-zakk) og skytbare
+                this.hazardNotes = (this.hazardNotes || []).filter(hz => {
+                    // Nedover bevegelse
+                    hz.y += hz.speed;
+                    // Zikk-zakk bølge
+                    hz.wave += hz.waveSpeed;
+                    hz.x += Math.sin(hz.wave) * 1.2;
+                    // Varmesøkende: styre litt mot spillerens senter
+                    const playerCenterX = this.player.x + this.player.width / 2;
+                    const dx = playerCenterX - hz.x;
+                    const steer = Math.max(-1.4, Math.min(1.4, dx * 0.04));
+                    hz.x += steer;
+                    // Sjekk om truffet av spillerkule
+                    let destroyedByBullet = false;
+                    for (const b of this.bullets) {
+                        const bRect = { x: b.x, y: b.y, width: b.width, height: b.height };
+                        const hzRect = { x: hz.x, y: hz.y - 24, width: 36, height: 28 };
+                        if (this.collision(bRect, hzRect)) {
+                            destroyedByBullet = true; break;
+                        }
+                    }
+                    if (destroyedByBullet) {
+                        this.destroyedHazards += 1;
+                        const el = document.getElementById('hazard-count');
+                        if (el) el.textContent = this.destroyedHazards;
+                    }
+                    return !destroyedByBullet && hz.y < 600 + 40; // behold til under skjerm
+                });
+
+                // Oppdater søvn-zetter (grønne meldinger etter alarm) og skytbare
+                this.sleepZeds = (this.sleepZeds || []).filter(z => {
+                    z.y += z.speed;
+                    z.wave += z.waveSpeed;
+                    z.x += Math.sin(z.wave) * 1.5;
+                    // Sjekk kulekollisjon
+                    let destroyedByBullet = false;
+                    for (const b of this.bullets) {
+                        const bRect = { x: b.x, y: b.y, width: b.width, height: b.height };
+                        const zRect = { x: z.x, y: z.y - 18, width: (z.width || 160), height: (z.height || 22) };
+                        if (this.collision(bRect, zRect)) { destroyedByBullet = true; break; }
+                    }
+                    if (destroyedByBullet) {
+                        this.destroyedZeds += 1;
+                        const el2 = document.getElementById('zeds-count');
+                        if (el2) el2.textContent = this.destroyedZeds;
+                    }
+                    return !destroyedByBullet && z.y < 600 + 40;
+                });
+
+                // Hvert 10. sekund: rød alarm + spawn 5 grønne meldinger (med synlig nedtelling)
+                const nowPerf = performance.now();
+                const elapsed = nowPerf - (this._lastAlertAt || 0);
+                const remaining = Math.max(0, 10000 - elapsed);
+                const countdownEl = document.getElementById('alarm-countdown');
+                if (countdownEl) countdownEl.textContent = Math.ceil(remaining / 1000);
+                if (remaining === 0) {
+                    this._lastAlertAt = nowPerf;
+                    if (countdownEl) countdownEl.textContent = 10;
+                    const msg = this.alertMessages[this.alertIndex % this.alertMessages.length];
+                    this.alertIndex = (this.alertIndex + 1) % this.alertMessages.length;
+                    this.showAlertMessage(msg, 2000);
+                    this.spawnSleepZeds(5, msg);
+                    // Aktiver farlige noter etter første alarm; deretter spawner ved 100-poeng milepæler
+                    const milestone = Math.floor(this.score / 100) * 100;
+                    if (milestone > this.lastHazardScoreMilestone) {
+                        this.lastHazardScoreMilestone = milestone;
+                        this.spawnHazardNote();
+                    }
+                }
+                
+                // Oppdater fiender (klassisk Space Invaders bevegelse: side-til-side + drop)
+                let shouldDrop = false;
+                const aliveEnemies = this.enemies.filter(e => e.alive);
+                if (aliveEnemies.length > 0) {
+                    const leftmost = Math.min(...aliveEnemies.map(e => e.x));
+                    const rightmost = Math.max(...aliveEnemies.map(e => e.x + e.width));
+                    const horizontalSpeed = 60 * this.enemySpeed; // px/s, skalerbar med level
+                    // Flytt horisontalt og gradvis nedover
+                    const descendSpeed = (24 + this.level * 6) * this.enemyDropSpeed; // px/s, tydelig nedstigning
+                    this.enemies.forEach(enemy => {
+                        if (enemy.alive) {
+                            enemy.x += this.enemyDirection * horizontalSpeed * dt;
+                            enemy.y += descendSpeed * dt;
+                        }
+                    });
+                    // Sjekk veggtreff
+                    if ((leftmost <= 0 && this.enemyDirection === -1) || (rightmost >= 800 && this.enemyDirection === 1)) {
+                        shouldDrop = true;
+                    }
+                }
+                // Dropp og snu ved veggtreff
+                if (shouldDrop) {
+                    const dropDistance = 24; // px per veggtreff
+                    this.enemies.forEach(enemy => {
+                        if (enemy.alive) enemy.y += dropDistance;
+                    });
+                    this.enemyDirection *= -1;
+                }
+                
+                // Kollisjonsdeteksjon (musikknote-kuler mot fiender)
+                this.bullets = this.bullets.filter(bullet => {
+                    for (let enemy of this.enemies) {
+                        if (enemy.alive && this.collision(bullet, enemy)) {
+                            enemy.alive = false;
+                            
+                            // Grunnpoeng per treff
+                            this.score += 5;
+                            const scoreEl = document.getElementById('score');
+                            if (scoreEl) scoreEl.textContent = this.score;
+
+                            // Registrer samlet objekt og sjekk bonus ved 5
+                            if (enemy.name && this.collected[enemy.name] !== undefined) {
+                                if (this.collected[enemy.name] < this.targetPerType) {
+                                    this.collected[enemy.name] += 1;
+
+                                    // Bonus ved 5
+                                    if (this.collected[enemy.name] === this.bonusThreshold && !this.bonusAwarded[enemy.name]) {
+                                        const bonus5 = this.bonusAt5[enemy.name];
+                                        if (bonus5) {
+                                            this.score += bonus5.points;
+                                            if (scoreEl) scoreEl.textContent = this.score;
+                                            this.showCenterMessage(bonus5.text, 2200);
+                                            this.bonusAwarded[enemy.name] = true;
+                                        }
+                                    }
+
+                                    // Bonus ved 20 (level-grense)
+                                    if (this.collected[enemy.name] === this.targetPerType) {
+                                        const bonus = this.bonusByType[enemy.name];
+                                        if (bonus) {
+                                            this.score += bonus.points;
+                                            if (scoreEl) scoreEl.textContent = this.score;
+                                            this.showCenterMessage(bonus.text, 2500);
+                                        }
+                                    }
+
+                                    this.updateCollectionDisplay();
+
+                                    // Fullført level når alle er 20
+                                    if (this.checkLevelComplete()) {
+                                        this.nextLevel();
+                                    }
+                                }
+                            }
+                            
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+                
+                // Sjekk win/lose
+                if (this.enemies.length > 0 && this.enemies.every(e => !e.alive)) {
+                    // Gå automatisk til neste level når bølgen er ryddet
+                    this.nextLevel();
+                    const levelSpan = document.getElementById('level');
+                    if (levelSpan) levelSpan.textContent = this.level;
+                }
+                
+                const lowestEnemy = Math.max(...this.enemies.filter(e => e.alive).map(e => e.y));
+                if (lowestEnemy > this.player.y - 50) {
+                    this.loseLife();
+                }
+
+                // Kollisjon: farlige noter mot spilleren
+                const playerRect = { x: this.player.x, y: this.player.y, width: this.player.width, height: this.player.height };
+                this.hazardNotes = (this.hazardNotes || []).filter(hz => {
+                    const hzRect = { x: hz.x, y: hz.y - 24, width: 36, height: 28 };
+                    if (this.collision(playerRect, hzRect)) { this.loseLife(); return false; }
+                    return true;
+                });
+                // Kollisjon: søvn-zetter mot spilleren (også game over for å øke presset)
+                this.sleepZeds = (this.sleepZeds || []).filter(z => {
+                    const zRect = { x: z.x, y: z.y - 20, width: 40, height: 20 };
+                    if (this.collision(playerRect, zRect)) { this.loseLife(); return false; }
+                    return true;
+                });
+
+                // HUD: sørg for at Level-displayet speiler faktisk this.level
+                const levelEl = document.getElementById('level');
+                if (levelEl && String(levelEl.textContent) !== String(this.level)) {
+                    levelEl.textContent = this.level;
+                }
+            }
+            
+            collision(rect1, rect2) {
+                return rect1.x < rect2.x + rect2.width &&
+                       rect1.x + rect1.width > rect2.x &&
+                       rect1.y < rect2.y + rect2.height &&
+                       rect1.y + rect1.height > rect2.y;
+            }
+
+            loseLife() {
+                if (this.gameState !== 'playing') return;
+                const now = performance.now();
+                if (now < (this.invulnerableUntil || 0)) return;
+                this.lives -= 1;
+                const livesEl = document.getElementById('lives');
+                if (livesEl) livesEl.textContent = this.lives;
+                if (this.lives <= 0) { this.gameOver(); return; }
+                // Kort immunitet og mild «reset»
+                this.invulnerableUntil = now + 1500;
+                this.player.x = 375;
+                // Skyv fiender litt opp for å unngå kjapp re-treff
+                this.enemies.forEach(e => { if (e.alive) e.y = Math.max(20, e.y - 60); });
+            }
+
+            spawnHazardNote() {
+                const startX = Math.random() * (800 - 40) + 20;
+                const speed = 2.4 + Math.random() * 1.2; // nedover
+                const waveSpeed = 0.08 + Math.random() * 0.06;
+                this.hazardNotes.push({ x: startX, y: -20, speed, wave: Math.random() * Math.PI * 2, waveSpeed });
+            }
+            
+            draw() {
+                this.ctx.clearRect(0, 0, 800, 600);
+                
+                // Tegn MIDI-keyboard spiller
+                this.drawMidiKeyboard(this.player.x, this.player.y);
+                
+                // Tegn musikknote-kuler
+                this.ctx.font = '21px Arial';
+                this.bullets.forEach(bullet => {
+                    const notes = ['♪', '♫', '♬', '♩', '♭', '♯'];
+                    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3'];
+                    
+                    this.ctx.fillStyle = colors[bullet.noteType];
+                    this.ctx.fillText(notes[bullet.noteType], bullet.x, bullet.y + 20.8);
+                    
+                    // Liten glød-effekt
+                    this.ctx.shadowColor = colors[bullet.noteType];
+                    this.ctx.shadowBlur = 3;
+                    this.ctx.fillText(notes[bullet.noteType], bullet.x, bullet.y + 20.8);
+                    this.ctx.shadowBlur = 0;
+                });
+                
+                // Tegn fiender
+                this.ctx.font = '40px Arial';
+                this.enemies.forEach(enemy => {
+                    if (enemy.alive) {
+                        this.ctx.fillText(enemy.type, enemy.x, enemy.y + 40);
+                    }
+                });
+
+                // Tegn farlige noter som kommer ovenfra
+                this.ctx.font = '28px Arial';
+                this.ctx.fillStyle = '#ff3b3b';
+                this.hazardNotes?.forEach(hz => {
+                    const symbol = '♫♫';
+                    this.ctx.save();
+                    this.ctx.translate(hz.x, hz.y);
+                    this.ctx.rotate(Math.sin(hz.wave) * 0.08);
+                    this.ctx.fillText(symbol, 0, 0);
+                    this.ctx.restore();
+                });
+
+                // Tegn søvn-zetter (rosa tekster)
+                this.ctx.font = '24px Arial';
+                this.ctx.fillStyle = '#ff69b4';
+                this.sleepZeds?.forEach(z => {
+                    const symbol = z.text || 'buuu med Knekklectric';
+                    this.ctx.save();
+                    this.ctx.translate(z.x, z.y);
+                    this.ctx.rotate(Math.sin(z.wave) * 0.05);
+                    this.ctx.fillText(symbol, 0, 0);
+                    this.ctx.restore();
+                });
+            }
+            
+            drawMidiKeyboard(x, y) {
+                const ctx = this.ctx;
+                const width = this.player.width;
+                const height = this.player.height;
+                
+                // Hovedkropp (svart)
+                ctx.fillStyle = '#2a2a2a';
+                ctx.fillRect(x, y, width, height);
+                
+                // Hvite tangenter
+                ctx.fillStyle = '#ffffff';
+                const keyWidth = width / 7;
+                for (let i = 0; i < 7; i++) {
+                    ctx.fillRect(x + i * keyWidth + 2, y + 8, keyWidth - 4, height - 16);
+                }
+                
+                // Sorte tangenter
+                ctx.fillStyle = '#000000';
+                const blackKeys = [1, 2, 4, 5, 6]; // Posisjon for sorte tangenter
+                blackKeys.forEach(pos => {
+                    const blackX = x + pos * keyWidth - 2;
+                    ctx.fillRect(blackX, y + 8, 4, (height - 16) * 0.6);
+                });
+                
+                // Brand/logo
+                ctx.fillStyle = '#666666';
+                ctx.font = '12px Arial'; // 50% større
+                ctx.fillText('MIDI', x + 2, y + 8);
+                
+                // LED-indikator
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(x + width - 8, y + 2, 4, 4);
+                
+                // Kontrollknapper
+                ctx.fillStyle = '#444444';
+                ctx.fillRect(x + width - 20, y + height - 8, 6, 4);
+                ctx.fillRect(x + width - 12, y + height - 8, 6, 4);
+            }
+            
+            gameOver() {
+                this.gameState = 'gameOver';
+                const app = document.getElementById('app');
+                app.innerHTML = `
+                    <div class="start-screen">
+                        <h1>Game Over</h1>
+                        <p>Final Score: ${this.score}</p>
+                        <p>Level: ${this.level}</p>
+                        <p>Samlet: ${Object.values(this.collected).reduce((a, b) => a + b, 0)}/20 objekter</p>
+                        <button onclick="game.showStartScreen()">Prøv Igjen</button>
+                    </div>
+                `;
+            }
+            
+            gameWon() {
+                this.gameState = 'won';
+                const app = document.getElementById('app');
+                app.innerHTML = `
+                    <div class="start-screen">
+                        <h1>Level ${this.level} Fullført!</h1>
+                        <p>Score: ${this.score}</p>
+                        <p>Samlet: ${Object.values(this.collected).reduce((a, b) => a + b, 0)}/20 objekter</p>
+                        <button onclick="game.nextLevel()">Neste Level</button>
+                        <button onclick="game.showStartScreen()">Start På Nytt</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // Start spillet
+        const game = new SpaceInvaders();
+    </script>
+</body>
+</html>
